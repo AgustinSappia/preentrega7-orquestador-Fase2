@@ -39,7 +39,7 @@ from app.dependencies import obtener_grafo, obtener_jobs
 from app.graph import checkpointer_redis, construir_grafo
 from app.hitl import router as router_hitl
 from app.jobs import Job, JobStore
-from app.observability import cerrar_observabilidad, inicializar_observabilidad
+from app.observability import cerrar_observabilidad, inicializar_observabilidad, verificar_conexion
 from app.worker import ejecutar_job
 
 load_dotenv(override=False)
@@ -57,7 +57,7 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 async def lifespan(app: FastAPI):
     """Todo lo que está antes del `yield` corre una sola vez al arrancar;
     lo que está después, una sola vez al apagar."""
-    app.state.observabilidad = inicializar_observabilidad()
+    app.state.observabilidad = await verificar_conexion(inicializar_observabilidad())
 
     redis = Redis.from_url(REDIS_URL, decode_responses=True)
     await redis.ping()  # si Redis no está levantado, la API falla al arrancar (mejor que fallar en cada pedido)

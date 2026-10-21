@@ -1,0 +1,59 @@
+[
+  {
+    "tema": "modelos",
+    "job_id": "831b21f5-a0c9-4717-90a7-e800e3e99899",
+    "latencia_post_ms": 19.4,
+    "estado": "DONE",
+    "total_cliente_s": 14.28,
+    "duracion_servidor_s": 13.961,
+    "sentimiento": "positivo",
+    "publicado": true,
+    "error": null
+  },
+  {
+    "tema": "regulación",
+    "job_id": "c2a258b2-0698-445b-b5c7-680966bcfab1",
+    "latencia_post_ms": 104.4,
+    "hitl": true,
+    "estado": "FAILED",
+    "total_cliente_s": 12.78,
+    "duracion_servidor_s": 12.187,
+    "sentimiento": null,
+    "publicado": false,
+    "error": "AttributeError: 'dict' object has no attribute 'sentimiento_general'"
+  },
+  {
+    "tema": "robótica",
+    "job_id": "5fd20b64-a0ef-4669-83b7-34333ffaa767",
+    "latencia_post_ms": 149.7,
+    "estado": "DONE",
+    "total_cliente_s": 11.71,
+    "duracion_servidor_s": 11.272,
+    "sentimiento": "positivo",
+    "publicado": true,
+    "error": null
+  },
+  {
+    "tema": "adopción",
+    "job_id": "f6fc6516-8820-46ab-a26c-f3853d3a12c7",
+    "latencia_post_ms": 145.2,
+    "estado": "DONE",
+    "total_cliente_s": 11.71,
+    "duracion_servidor_s": 11.512,
+    "sentimiento": "positivo",
+    "publicado": true,
+    "error": null
+  },
+  {
+    "tema": "agentes",
+    "job_id": "53efe4fa-5ba4-4ba7-bf56-f7066811097c",
+    "latencia_post_ms": 153.8,
+    "hitl": true,
+    "estado": "FAILED",
+    "total_cliente_s": 12.28,
+    "duracion_servidor_s": 11.646,
+    "sentimiento": null,
+    "publicado": false,
+    "error": "AttributeError: 'dict' object has no attribute 'sentimiento_general'"
+  }
+]

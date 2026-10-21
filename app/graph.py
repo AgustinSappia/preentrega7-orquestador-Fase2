@@ -43,7 +43,13 @@ from pydantic import BaseModel, Field
 from app.agents.analyst_agent import analizar
 from app.agents.research_agent import investigar
 from app.hitl import nodo_aprobacion_humana, rutear_tras_aprobacion
-from app.state import TIPOS_SERIALIZABLES, MAX_PASOS, AgentState, ReportePublicado
+from app.state import (
+    MAX_PASOS,
+    TIPOS_SERIALIZABLES,
+    TIPOS_SERIALIZABLES_JSON,
+    AgentState,
+    ReportePublicado,
+)
 
 load_dotenv(override=False)
 
@@ -297,6 +303,26 @@ def estado_inicial(topic: str, forzar_aprobacion: bool = False) -> AgentState:
 # ---------------------------------------------------------------------------
 # Checkpointer de Redis
 # ---------------------------------------------------------------------------
+def serializador_redis():
+    """Serializador del checkpointer de Redis con la "lista blanca" de
+    clases propias que se pueden reconstruir al leer un checkpoint.
+
+    Se configuran LOS DOS formatos, porque el checkpointer de Redis usa
+    ambos: msgpack para algunos datos y JSON (RedisJSON) para el estado de
+    los canales. Con solo `allowed_msgpack_modules`, al reanudar un job
+    después de la aprobación humana los artefactos volvían como `dict`.
+    (Este error apareció en la primera corrida real con Redis 8: el
+    checkpointer en memoria de los tests usa solo msgpack y no lo mostraba.
+    Ahora lo cubre tests/test_checkpointer_redis.py.)
+    """
+    from langgraph.checkpoint.redis.jsonplus_redis import JsonPlusRedisSerializer
+
+    return JsonPlusRedisSerializer(
+        allowed_msgpack_modules=TIPOS_SERIALIZABLES,
+        allowed_json_modules=TIPOS_SERIALIZABLES_JSON,
+    )
+
+
 @asynccontextmanager
 async def checkpointer_redis(redis_url: str, ttl_minutos: int = 24 * 60) -> AsyncIterator[BaseCheckpointSaver]:
     """Abre un `AsyncRedisSaver` listo para usar y lo cierra al salir.
@@ -312,11 +338,10 @@ async def checkpointer_redis(redis_url: str, ttl_minutos: int = 24 * 60) -> Asyn
     # Import local: así los tests (que usan InMemorySaver) no necesitan
     # cargar la librería de Redis.
     from langgraph.checkpoint.redis.aio import AsyncRedisSaver
-    from langgraph.checkpoint.redis.jsonplus_redis import JsonPlusRedisSerializer
 
     async with AsyncRedisSaver.from_conn_string(
         redis_url, ttl={"default_ttl": ttl_minutos, "refresh_on_read": True}
     ) as saver:
-        saver.serde = JsonPlusRedisSerializer(allowed_msgpack_modules=TIPOS_SERIALIZABLES)
+        saver.serde = serializador_redis()
         await saver.asetup()
         yield saver

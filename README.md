@@ -57,8 +57,8 @@ preentrega7/
 │   ├── state.py           # AgentState + artefactos Pydantic + lista blanca de tipos del checkpointer
 │   └── agents/            # Investigador y Analista (Pre-entrega 6, con @traceable)
 ├── scripts/carga_concurrente.py   # 5 peticiones concurrentes + resumen de latencias
-├── tests/                 # 58 tests, sin API key ni Redis (LLM falso + fakeredis + InMemorySaver)
-├── screenshots/           # capturas de LangSmith (ver screenshots/README.md)
+├── tests/                 # 69 tests, sin API key ni Redis (LLM falso + fakeredis + InMemorySaver)
+├── screenshots/           # capturas reales de LangSmith (trazas, costo, latencia, HITL, tokens)
 ├── docs/diagramas/        # diagramas del README (fuente .mmd + imagen .png)
 ├── Dockerfile · docker-compose.yml · requirements.txt · .env.example · pytest.ini
 └── README.md
@@ -72,11 +72,25 @@ preentrega7/
 
 - Docker Desktop (para Redis 8 y, si querés, también la API).
 - Una API key de OpenAI (o Anthropic).
-- Una API key de LangSmith. Se crea gratis en <https://smith.langchain.com>, en **Settings → API Keys**.
+- Una API key de LangSmith. Los pasos para crearla están más abajo.
 
 ```bash
 cp .env.example .env      # completar OPENAI_API_KEY y LANGSMITH_API_KEY
 ```
+
+#### Cómo crear la API key de LangSmith
+
+1. Entrá a <https://smith.langchain.com> y creá una cuenta. Podés usar Google, GitHub o un mail, y el plan gratuito alcanza para este proyecto.
+2. Abrí **Settings** (el engranaje, abajo a la izquierda) → **API Keys** → **Create API Key**. Elegí el tipo *Personal Access Token*.
+3. Copiá la key, que empieza con `lsv2_pt_`. **Se muestra una sola vez.**
+4. En el `.env`, reemplazá el valor de ejemplo `lsv2_...` por tu key, y dejá `LANGSMITH_TRACING=true`.
+5. Si tu cuenta quedó en la región de Europa (la URL dice `eu.smith.langchain.com`), descomentá `LANGSMITH_ENDPOINT` en el `.env`.
+
+No hace falta crear el proyecto a mano: LangSmith lo crea solo con la primera traza.
+
+> **Si cambiás el `.env` con los contenedores ya levantados**, Docker no
+> relee el archivo. Hay que recrear el contenedor con
+> `docker compose up -d --force-recreate api`.
 
 ### Opción A: todo con Docker Compose (recomendada)
 
@@ -107,8 +121,10 @@ Para comprobar que todo está bien:
 
 ```bash
 curl http://localhost:8000/health
-# {"status":"ok","redis":true,"observabilidad":{"plataforma":"langsmith","activo":true,"proyecto":"preentrega7-orquestador"}}
+# {"status":"ok","redis":true,"observabilidad":{"plataforma":"langsmith","activo":true,"proyecto":"preentrega7-orquestador","conexion":"ok"}}
 ```
+
+En `observabilidad`, lo que importa es `"conexion": "ok"`: significa que LangSmith aceptó la key. Si dice otra cosa, el campo `motivo` explica qué pasa. Por ejemplo, avisa si quedó el valor de ejemplo de `.env.example` o si LangSmith rechazó la key.
 
 ---
 
@@ -209,6 +225,7 @@ Otros detalles de la persistencia:
 
 - **Aprobaciones simultáneas.** La transición `AWAITING_APPROVAL → RUNNING` es atómica: usa `WATCH/MULTI/EXEC`, que es concurrencia optimista. Si llegan dos aprobaciones a la vez, solo una reanuda el grafo y la otra recibe **409**. Lo probé contra un Redis real lanzando 10 aprobaciones simultáneas, y ganó exactamente 1.
 - **Lista blanca del checkpointer.** El checkpointer solo puede reconstruir las clases propias listadas en `TIPOS_SERIALIZABLES` (`app/state.py`). Reconstruir objetos a partir de bytes guardados afuera es un punto sensible de seguridad, y LangGraph va a bloquear por defecto las clases no registradas.
+- **La lista blanca tiene que cubrir los dos formatos.** El checkpointer de Redis guarda el estado como JSON, así que además de `allowed_msgpack_modules` hace falta `allowed_json_modules` (ver `serializador_redis()` en `app/graph.py`). En la primera corrida real faltaba la segunda: los jobs que pasaban por aprobación fallaban al reanudarse con `AttributeError: 'dict' object has no attribute 'sentimiento_general'`, porque el análisis volvía de Redis como diccionario. Los tests no lo detectaban porque el checkpointer en memoria usa solo msgpack. Ahora lo cubre `tests/test_checkpointer_redis.py`, que usa el código real de conversión a JSON de `AsyncRedisSaver` y falla si se quita el arreglo.
 
 ### Human-in-the-loop
 
@@ -228,7 +245,7 @@ Otros detalles de la persistencia:
   - `metadata`: `job_id`, `thread_id`, modelo.
 
   Con `metadata.thread_id`, LangSmith agrupa la ejecución inicial y la reanudación del HITL en el mismo *Thread*.
-- **Validación al arrancar.** Si falta la API key, se apaga el tracing con un aviso en vez de fallar en cada traza.
+- **Validación al arrancar** (`inicializar_observabilidad` + `verificar_conexion`). Revisa que la key exista, que no sea el texto de ejemplo de `.env.example`, y hace una consulta real a LangSmith para confirmar que la acepta. Si algo falla, apaga el tracing y `/health` dice por qué. Se agregó después de la primera corrida real: con el valor de ejemplo `lsv2_...`, `/health` decía `"activo": true` mientras LangSmith rechazaba las trazas en silencio.
 - **Al apagar.** `wait_for_all_tracers()` envía las trazas que hayan quedado pendientes.
 
 ### Búsqueda más robusta (mejora sobre la Pre-entrega 6)
@@ -270,9 +287,120 @@ El detalle de cada captura está en [`screenshots/README.md`](screenshots/README
 
 ### Resultado real de la prueba de carga
 
-> **PENDIENTE:** pegar acá la salida real de `python scripts/carga_concurrente.py`
-> corrida contra la API con LLM real y LangSmith activo, junto con la lectura
-> del dashboard: p95, costo por ejecución y nodo que más tokens consume.
+Corrida contra la API levantada con Docker Compose (Redis 8), con
+`gpt-4o-mini` y LangSmith verificado (`"conexion": "ok"`). Las capturas de
+`screenshots/` corresponden a esta corrida.
+
+```
+API: {'status': 'ok', 'redis': True, 'observabilidad': {'plataforma': 'langsmith', 'activo': True, 'proyecto': 'preentrega7-orquestador', 'conexion': 'ok'}}
+
+Lanzando 5 peticiones CONCURRENTES...
+  → [modelos] job_id=05811ab4-a529-403e-b472-801030b39e43  (POST respondió en 157.2 ms)
+  → [regulación] job_id=8b9f063d-0d86-4e38-bc1a-dc6bb8e29b65  (POST respondió en 49.7 ms)
+  → [robótica] job_id=54092864-4969-4b5d-bd67-9416e912b8de  (POST respondió en 157.0 ms)
+  → [adopción] job_id=fe91e9f6-fd48-4c2b-9220-d999f226947c  (POST respondió en 160.8 ms)
+  → [agentes] job_id=e6a980c6-96ac-4a02-9ae2-b0a12f7567b4  (POST respondió en 268.9 ms)
+
+Haciendo polling hasta que terminen...
+  ⏸  [regulación] pide aprobación humana: El reporte tiene sentimiento general NEGATIVO (score promedio 0.05). Publicarlo tiene riesgo reputacional: requiere aprobación humana.
+  ✅ [regulación] aprobado (HTTP 202)
+  ⏸  [agentes] pide aprobación humana: El reporte tiene sentimiento general NEGATIVO (score promedio 0.05). Publicarlo tiene riesgo reputacional: requiere aprobación humana.
+  ✅ [agentes] aprobado (HTTP 202)
+
+================================================================================================
+tema         estado             HITL  sentim.   publicó   POST ms  total s  servidor s
+------------------------------------------------------------------------------------------------
+modelos      DONE               no    positivo  sí          157.2    11.95      11.305
+regulación   DONE               sí    negativo  sí           49.7    10.46       9.915
+robótica     DONE               no    positivo  sí          157.0    10.91       10.33
+adopción     DONE               no    positivo  sí          160.8    10.91      10.361
+agentes      DONE               sí    negativo  sí          268.9    11.47      10.731
+================================================================================================
+Tiempo total de la corrida: 11.95 s
+Latencia de POST /tasks  -> máx 268.9 ms | p95 268.9 ms
+Latencia extremo a extremo (cliente) -> p50 10.91 s | p95 11.95 s
+```
+
+Qué muestra esta corrida:
+
+- **La API no se bloqueó.** Los 5 `POST /tasks` respondieron en 50 a 269 ms, cuando cada tarea tarda entre 10 y 12 segundos.
+- **Las tareas corrieron en paralelo.** La corrida completa duró 11.95 s, prácticamente lo que tarda la tarea más lenta. En serie habría tardado unos 53 s, la suma de las cinco.
+- **Los dos caminos del HITL funcionan.** Los temas con sentimiento negativo (`regulación` y `agentes`) se pausaron en `AWAITING_APPROVAL`, se aprobaron por la API y se reanudaron desde el checkpoint guardado en Redis. Los otros tres se publicaron sin pausa.
+
+### Lectura del dashboard de LangSmith
+
+Las capturas están en [`screenshots/`](screenshots/README.md). En la corrida
+se ven **7 trazas**: 5 `orquestador-ejecucion`, una por petición, y 2
+`orquestador-reanudacion`, de los jobs que pasaron por aprobación humana.
+
+![Lista de trazas con latencia, tokens y costo](screenshots/01_lista_trazas_latencia_tokens_costo.jpg)
+
+**Costo por ejecución.** LangSmith lo calcula a partir de los tokens de entrada y salida de `gpt-4o-mini`:
+
+| Ejecución | Latencia | Tokens | Costo |
+|---|---|---|---|
+| `modelos` | 11.26 s | 2.966K | $0.0006438 |
+| `adopción` | 10.34 s | 2.542K | $0.0005150 |
+| `robótica` | 10.28 s | 2.494K | $0.0004997 |
+| `agentes` (HITL) | 10.20 s + 0.05 s de reanudación | 2.544K | $0.0005144 |
+| `regulación` (HITL) | 9.57 s + 0.04 s de reanudación | 2.537K | $0.0005124 |
+| **Promedio** | **10.33 s** | **2.617K** | **$0.000537** |
+
+- El costo por ejecución va de **$0.00050 a $0.00064**. Cada una usa unos 2.6K tokens, y la corrida completa costó **$0.0027**.
+- Las reanudaciones después de la aprobación cuestan $0, porque no llaman al LLM: solo recuperan el checkpoint de Redis, publican y terminan. Tardan entre 0.04 y 0.05 s.
+- `modelos` es la ejecución más cara porque su búsqueda trae 2 noticias en lugar de 1, y eso le da más contexto al Investigador y al Analista.
+
+**Latencia p95 y P50.** Se toman las latencias de las 5 trazas de ejecución que muestra el dashboard: 9.57, 10.20, 10.28, 10.34 y 11.26 s.
+
+| Métrica | Valor |
+|---|---|
+| P50 (mediana) | **10.28 s** |
+| **p95** | **11.26 s** (método *nearest-rank*; con interpolación lineal da 11.08 s) |
+| p95 visto desde el cliente (`carga_concurrente.py`) | 11.95 s |
+
+Con solo 5 muestras, el p95 por *nearest-rank* coincide con la ejecución más
+lenta (`modelos`). El p95 del cliente es unos 0.7 s mayor porque suma el
+intervalo de polling (0.5 s) y el viaje HTTP. LangSmith muestra P50 y P99 por
+defecto (vista *Threads*, captura 04), por eso el p95 se calcula a partir de
+las latencias del dashboard.
+
+**Dónde se concentra la latencia.** Vista *Waterfall* de la traza de `modelos`, 11.26 s:
+
+![Waterfall de una ejecución](screenshots/02_arbol_traza_waterfall.jpg)
+
+| Paso | Tiempo | % del total |
+|---|---|---|
+| Investigador (2 llamadas al LLM + herramienta) | 4.99 s | 44 % |
+| Analista (2 llamadas al LLM + herramienta) | 4.85 s | 43 % |
+| Supervisor, decisión final (1 llamada al LLM) | 0.97 s | 9 % |
+| Supervisor, primer paso (sin LLM, regla en código) | 0.25 s | 2 % |
+| Herramientas, AprobacionHumana, Publicador | ≈ 0.01 s cada uno | ≈ 0 % |
+
+- **El 91 % del tiempo (10.27 de 11.26 s) es esperar a OpenAI**, repartido en las 5 llamadas a `ChatOpenAI`.
+- Las herramientas simuladas, el ruteo, el HITL y la publicación son prácticamente instantáneos.
+- Esto confirma que lo correcto era hacer la API asíncrona: el servidor pasa casi todo el tiempo esperando a la red, y en esa espera atiende otras peticiones.
+
+**Qué nodo consume más tokens.** Capturas 06a, 06b y 06c:
+
+| Llamada al LLM | Entrada | Salida | Total |
+|---|---|---|---|
+| Investigador, 1ª (decide llamar a `buscar_noticias_ia`) | 384 | 19 | 403 |
+| **Investigador, 2ª (redacta con el resultado de la herramienta)** | **577** | **163** | **740** |
+| Analista (llamada medida) | 480 | 152 | 632 |
+
+- **El Investigador es el nodo que más tokens consume**: 1,143 tokens entre sus dos llamadas, cerca del 44 % de una ejecución.
+- Su segunda llamada es la más cara de las medidas. El resultado de la herramienta, con el JSON completo de las noticias, entra en el contexto como entrada.
+
+**Mejora detectada a partir del dashboard.** La segunda llamada de cada especialista solo redacta un texto de cierre ("Encontré noticias...", "Listo, analicé..."). El código lo descarta, porque toma el resultado directamente del `ToolMessage` de la herramienta (ver `investigar()` y `analizar()`). En la traza medida, esas dos llamadas suman **4.98 s (44 % de la latencia)**. Solo la segunda del Investigador ya son 740 de unos 2.5K tokens (29 %), y a eso se suma la segunda del Analista.
+
+El paso siguiente sería marcar las herramientas con `return_direct=True`, para que el agente ReAct termine apenas la herramienta responde. Según estas trazas, ahorraría cerca del 44 % de la latencia y al menos el 29 % del costo por ejecución. No se aplicó en esta entrega, para que el código coincida con lo que muestran las capturas.
+
+**Human-in-the-loop en las trazas.** Captura 03. El job de `regulación` aparece como un *Thread* con 2 turnos:
+
+1. **Turno 1**: el nodo `AprobacionHumana` termina en **Interrupted Run** (`GraphInterrupt`) con el motivo *"El reporte tiene sentimiento general NEGATIVO..."*.
+2. **Turno 2**: la reanudación, disparada por `POST /tasks/{id}/approve`, pasa por `AprobacionHumana`, `rutear_tras_aprobacion` y `Publicador`.
+
+Los dos turnos aparecen juntos gracias a `metadata.thread_id = job_id` (ver `config_de_ejecucion` en `app/observability.py`).
 
 ### Verificación hecha en el entorno de desarrollo (sin API key)
 
@@ -317,7 +445,7 @@ Latencia extremo a extremo (cliente) -> p50 0.56 s | p95 0.75 s
 pytest -v
 ```
 
-Son **58 tests**:
+Son **69 tests**:
 
 | Archivo | Qué cubre |
 |---|---|
@@ -325,6 +453,8 @@ Son **58 tests**:
 | `test_jobs.py` | `JobStore` sobre **fakeredis**: crear y leer, TTL, tiempos del ciclo de vida, transición atómica, **doble aprobación simultánea**, publicación, listado |
 | `test_worker.py` | `DONE`, `AWAITING_APPROVAL → DONE`, `REJECTED`; **excepción → FAILED**; **timeout → FAILED**; error al reanudar → FAILED; 5 jobs concurrentes con el mismo grafo sin mezclarse |
 | `test_api.py` | Endpoints con `httpx.ASGITransport`: 202, 404, 422, FAILED visible por HTTP, flujo HITL completo, rechazo, 409 al aprobar dos veces o un job que no espera aprobación |
+| `test_observability.py` | Validación de LangSmith al arrancar: tracing apagado, falta la key, **valor de ejemplo de `.env.example`**, key aceptada, key rechazada (se apaga el tracing) y sin red. La conexión se simula con clientes falsos |
+| `test_checkpointer_redis.py` | El estado completo (pausado y final) pasa por la conversión a JSON del checkpointer de Redis y vuelve con los artefactos como objetos Pydantic. Es el test de regresión del error de la primera corrida real |
 | `test_no_bloqueante.py` | **Servidor uvicorn real**: 5 POST concurrentes contra un grafo que tarda 1 s. Cada POST responde en menos de 0.5 s, `/health` responde mientras corren, y las 5 terminan en unos 1 s, no en 5 |
 | `test_research_agent.py`, `test_analyst_agent.py`, `test_state.py` | Agentes y modelos de la Pre-entrega 6, más la búsqueda por palabras clave |
 

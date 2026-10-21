@@ -168,3 +168,11 @@ TIPOS_SERIALIZABLES = [
         "ReportePublicado",
     )
 ]
+
+# La misma lista, en el formato que pide el modo JSON del serializador
+# ("app", "state", "ResultadoAnalisis"). Hace falta porque el checkpointer
+# de Redis guarda los checkpoints como JSON (no como msgpack): sin esta
+# lista, al reanudar un job los artefactos vuelven como `dict` en vez de
+# como objetos Pydantic, y el grafo falla con
+# AttributeError: 'dict' object has no attribute 'sentimiento_general'.
+TIPOS_SERIALIZABLES_JSON = [tuple(modulo.split(".")) + (clase,) for modulo, clase in TIPOS_SERIALIZABLES]

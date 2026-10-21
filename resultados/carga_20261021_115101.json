@@ -1,0 +1,59 @@
+[
+  {
+    "tema": "modelos",
+    "job_id": "05811ab4-a529-403e-b472-801030b39e43",
+    "latencia_post_ms": 157.2,
+    "estado": "DONE",
+    "total_cliente_s": 11.95,
+    "duracion_servidor_s": 11.305,
+    "sentimiento": "positivo",
+    "publicado": true,
+    "error": null
+  },
+  {
+    "tema": "regulación",
+    "job_id": "8b9f063d-0d86-4e38-bc1a-dc6bb8e29b65",
+    "latencia_post_ms": 49.7,
+    "hitl": true,
+    "estado": "DONE",
+    "total_cliente_s": 10.46,
+    "duracion_servidor_s": 9.915,
+    "sentimiento": "negativo",
+    "publicado": true,
+    "error": null
+  },
+  {
+    "tema": "robótica",
+    "job_id": "54092864-4969-4b5d-bd67-9416e912b8de",
+    "latencia_post_ms": 157.0,
+    "estado": "DONE",
+    "total_cliente_s": 10.91,
+    "duracion_servidor_s": 10.33,
+    "sentimiento": "positivo",
+    "publicado": true,
+    "error": null
+  },
+  {
+    "tema": "adopción",
+    "job_id": "fe91e9f6-fd48-4c2b-9220-d999f226947c",
+    "latencia_post_ms": 160.8,
+    "estado": "DONE",
+    "total_cliente_s": 10.91,
+    "duracion_servidor_s": 10.361,
+    "sentimiento": "positivo",
+    "publicado": true,
+    "error": null
+  },
+  {
+    "tema": "agentes",
+    "job_id": "e6a980c6-96ac-4a02-9ae2-b0a12f7567b4",
+    "latencia_post_ms": 268.9,
+    "hitl": true,
+    "estado": "DONE",
+    "total_cliente_s": 11.47,
+    "duracion_servidor_s": 10.731,
+    "sentimiento": "negativo",
+    "publicado": true,
+    "error": null
+  }
+]

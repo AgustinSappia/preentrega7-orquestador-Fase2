@@ -1,0 +1,57 @@
+[
+  {
+    "tema": "modelos",
+    "job_id": "ca1f4f2d-8438-440c-b383-ecff420fe120",
+    "latencia_post_ms": 177.4,
+    "estado": "FAILED",
+    "total_cliente_s": 1.3,
+    "duracion_servidor_s": 0.946,
+    "sentimiento": null,
+    "publicado": false,
+    "error": "OpenAIAuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-.... You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}"
+  },
+  {
+    "tema": "regulación",
+    "job_id": "ce63695e-4d19-48e1-b96a-85b227b3b949",
+    "latencia_post_ms": 69.0,
+    "estado": "FAILED",
+    "total_cliente_s": 1.32,
+    "duracion_servidor_s": 1.054,
+    "sentimiento": null,
+    "publicado": false,
+    "error": "OpenAIAuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-.... You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}"
+  },
+  {
+    "tema": "robótica",
+    "job_id": "c359f1a5-8727-4d87-a90f-7f8b8f031c7b",
+    "latencia_post_ms": 69.4,
+    "estado": "FAILED",
+    "total_cliente_s": 1.31,
+    "duracion_servidor_s": 1.147,
+    "sentimiento": null,
+    "publicado": false,
+    "error": "OpenAIAuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-.... You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}"
+  },
+  {
+    "tema": "adopción",
+    "job_id": "ee53c01d-efbf-4d44-90ba-7da27c1f9264",
+    "latencia_post_ms": 88.2,
+    "estado": "FAILED",
+    "total_cliente_s": 1.31,
+    "duracion_servidor_s": 1.009,
+    "sentimiento": null,
+    "publicado": false,
+    "error": "OpenAIAuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-.... You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}"
+  },
+  {
+    "tema": "agentes",
+    "job_id": "bd1e8ac6-2577-42a5-9b21-e39842a10169",
+    "latencia_post_ms": 118.1,
+    "estado": "FAILED",
+    "total_cliente_s": 1.31,
+    "duracion_servidor_s": 1.082,
+    "sentimiento": null,
+    "publicado": false,
+    "error": "OpenAIAuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-.... You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'code': 'invalid_api_key', 'param': None}, 'status': 401}"
+  }
+]
