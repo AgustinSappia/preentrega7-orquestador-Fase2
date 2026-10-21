@@ -1,0 +1,36 @@
+flowchart TB
+    C(["Cliente y revisor humano"]):::actor
+
+    subgraph API["FastAPI"]
+        direction LR
+        E["Endpoints<br/><small>POST /tasks<br/>GET /tasks/{id}<br/>POST /tasks/{id}/approve</small>"]:::endpoint
+        W["Worker<br/><small>BackgroundTask</small>"]:::worker
+        O["Grafo LangGraph<br/><small>Supervisor · Investigador · Analista<br/>AprobacionHumana · Publicador</small>"]:::grafo
+        E -- "encola / reanuda" --> W
+        W -- "ainvoke" --> O
+    end
+
+    subgraph R["Redis 8"]
+        direction LR
+        J[("job:{id}<br/><small>estado del job</small>")]:::redis
+        K[("checkpoint:*<br/><small>fotos del grafo</small>")]:::redis
+        L[("reportes:publicados<br/><small>efecto secundario</small>")]:::redis
+    end
+
+    LS["LangSmith<br/><small>trazas · tokens · costo · p95</small>"]:::ext
+
+    C <== "HTTP" ==> E
+    E <-- "crea / lee" --> J
+    W -- "actualiza estado" --> J
+    O <-- "guarda / retoma" --> K
+    O -- "publica" --> L
+    O -. "trazas" .-> LS
+
+    classDef actor fill:#f1f5f9,stroke:#475569,color:#0f172a
+    classDef endpoint fill:#e0f2fe,stroke:#0369a1,color:#0c4a6e
+    classDef worker fill:#fef3c7,stroke:#b45309,color:#78350f
+    classDef grafo fill:#ede9fe,stroke:#6d28d9,color:#3b0764
+    classDef redis fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d
+    classDef ext fill:#dcfce7,stroke:#15803d,color:#14532d
+    style API fill:#f8fafc,stroke:#94a3b8
+    style R fill:#fff7f7,stroke:#fca5a5

@@ -14,54 +14,33 @@ Analista, y trabaja sobre noticias de IA. Esta versión le suma:
 
 ## 1. Arquitectura
 
-```
-                       ┌──────────────────────────── FastAPI (un proceso) ─────────────────────────────┐
- cliente ── POST /tasks ──► crea job PENDING en Redis ──► responde 202 {job_id}  (no espera al grafo)     │
-                       │         │                                                                     │
-                       │         └─ BackgroundTask: worker.ejecutar_job(job_id)                        │
-                       │               RUNNING ─► grafo.ainvoke(thread_id=job_id) ─► DONE / FAILED     │
-                       │                                         │                 └► AWAITING_APPROVAL│
- cliente ── GET /tasks/{id} ──► lee el job en Redis (polling)    │                                     │
- humano ─── POST /tasks/{id}/approve ──► AWAITING_APPROVAL→RUNNING (atómico) ─► worker.reanudar_job    │
-                       └─────────────────────────────────────────┼─────────────────────────────────────┘
-                                                                 │
-          ┌──────────────── Redis 8 ───────────────┐             │  trazas (async, en lotes)
-          │ job:{id}              estado del job    │             └──────────────► LangSmith
-          │ checkpoint:*          checkpoints grafo │                             (latencia, tokens,
-          │ reportes:publicados   efecto secundario │                              costo, p95)
-          └─────────────────────────────────────────┘
-```
+### Vista general
 
-### El grafo (generado con `grafo.get_graph().draw_mermaid()`)
+La API, el worker y el grafo corren en el mismo proceso de FastAPI. Redis
+guarda tres cosas distintas, y LangSmith recibe las trazas de cada ejecución.
 
-```mermaid
-graph TD;
-	__start__([<p>__start__</p>]):::first
-	Supervisor(Supervisor)
-	Investigador(Investigador)
-	Analista(Analista)
-	AprobacionHumana(AprobacionHumana)
-	Publicador(Publicador)
-	__end__([<p>__end__</p>]):::last
-	Analista --> Supervisor;
-	AprobacionHumana -.-> Publicador;
-	AprobacionHumana -. &nbsp;FIN&nbsp; .-> __end__;
-	Investigador --> Supervisor;
-	Supervisor -.-> Analista;
-	Supervisor -.-> AprobacionHumana;
-	Supervisor -.-> Investigador;
-	Supervisor -. &nbsp;FIN&nbsp; .-> __end__;
-	__start__ --> Supervisor;
-	Publicador --> __end__;
-	classDef default fill:#f2f0ff,line-height:1.2
-	classDef first fill-opacity:0
-	classDef last fill:#bfb6fc
-```
+![Arquitectura: cliente, FastAPI (endpoints, worker, grafo), Redis 8 y LangSmith](docs/diagramas/1_arquitectura.png)
+
+### Recorrido de una tarea crítica, paso a paso
+
+Ejemplo con `"regulación"`, que da sentimiento negativo y por eso necesita
+aprobación humana. Una tarea no crítica hace lo mismo, pero sin el bloque 3:
+el grafo publica directo y el job pasa a `DONE`.
+
+![Secuencia de una tarea crítica: encolar, ejecutar, pausar, aprobar y reanudar](docs/diagramas/2_secuencia.png)
+
+### El grafo
+
+![Grafo: Supervisor, Investigador, Analista, AprobacionHumana y Publicador](docs/diagramas/3_grafo.png)
 
 Respecto de la Pre-entrega 6, cambia una sola cosa del flujo. Cuando el
 Supervisor decide `FINALIZAR` y ya hay un análisis suficiente, el grafo no
 termina: pasa por **AprobacionHumana** y después por **Publicador**. Si se
 cortó por el contador de pasos y no hay análisis útil, termina sin publicar.
+
+> Los diagramas están hechos con Mermaid. El código fuente de cada uno está en
+> `docs/diagramas/*.mmd`, y las imágenes se generan con
+> `npx @mermaid-js/mermaid-cli -i docs/diagramas/<nombre>.mmd -o docs/diagramas/<nombre>.png -b white -s 2`.
 
 ### Estructura del repositorio
 
@@ -80,6 +59,7 @@ preentrega7/
 ├── scripts/carga_concurrente.py   # 5 peticiones concurrentes + resumen de latencias
 ├── tests/                 # 58 tests, sin API key ni Redis (LLM falso + fakeredis + InMemorySaver)
 ├── screenshots/           # capturas de LangSmith (ver screenshots/README.md)
+├── docs/diagramas/        # diagramas del README (fuente .mmd + imagen .png)
 ├── Dockerfile · docker-compose.yml · requirements.txt · .env.example · pytest.ini
 └── README.md
 ```
@@ -166,6 +146,8 @@ curl localhost:8000/tasks/ec97562c-...
 > directamente Swagger en `/docs`, que es lo más cómodo.
 
 ### Estados de un job
+
+![Estados de un job: PENDING, RUNNING, AWAITING_APPROVAL, DONE, REJECTED, FAILED](docs/diagramas/4_estados.png)
 
 | Estado | Significado |
 |---|---|

@@ -1,0 +1,43 @@
+sequenceDiagram
+    autonumber
+    actor C as Cliente
+    participant API as FastAPI
+    participant W as Worker
+    participant G as Grafo
+    participant R as Redis
+    actor H as Revisor
+
+    rect rgb(224, 242, 254)
+        Note over C,R: 1. Encolar (responde al instante)
+        C->>API: POST /tasks (topic = "regulación")
+        API->>R: crea job PENDING
+        API-->>C: 202 + job_id
+        API->>W: BackgroundTask
+    end
+
+    rect rgb(254, 243, 199)
+        Note over C,R: 2. Ejecución en segundo plano
+        W->>R: RUNNING
+        W->>G: ainvoke(thread_id = job_id)
+        G->>R: checkpoint después de cada nodo
+        Note over G: sentimiento negativo → interrupt()
+        G-->>W: __interrupt__ + propuesta
+        W->>R: AWAITING_APPROVAL
+        C->>API: GET /tasks/{id} (polling)
+        API-->>C: AWAITING_APPROVAL + propuesta
+    end
+
+    rect rgb(254, 226, 226)
+        Note over API,H: 3. Aprobación humana y reanudación
+        H->>API: POST /tasks/{id}/approve (aprobado = true)
+        API->>R: AWAITING_APPROVAL → RUNNING (atómico)
+        API-->>H: 202
+        API->>W: reanudar_job
+        W->>G: Command(resume = decisión)
+        G->>R: retoma el checkpoint y publica el reporte
+        G-->>W: estado final
+        W->>R: DONE
+    end
+
+    C->>API: GET /tasks/{id}
+    API-->>C: DONE + resultado

@@ -1,0 +1,26 @@
+flowchart TD
+    INI(["Inicio"]):::borde
+    SUP["Supervisor<br/><small>decide el siguiente paso</small>"]:::supervisor
+    INV["Investigador<br/><small>buscar_noticias_ia</small>"]:::investigador
+    ANA["Analista<br/><small>analizar_sentimiento_noticias</small>"]:::analista
+    HITL{{"AprobacionHumana<br/><small>si es crítica: interrupt()</small>"}}:::hitl
+    PUB[/"Publicador<br/><small>reportes:publicados</small>"/]:::publicador
+    FIN(["Fin"]):::borde
+
+    INI --> SUP
+    SUP -- "investigar<br/>o refinar" --> INV
+    INV --> SUP
+    SUP -- "analizar" --> ANA
+    ANA --> SUP
+    SUP -- "FINALIZAR" --> HITL
+    SUP -- "tope de pasos" --> FIN
+    HITL -- "aprobado" --> PUB
+    HITL -- "rechazado" --> FIN
+    PUB --> FIN
+
+    classDef borde fill:#f1f5f9,stroke:#475569,color:#0f172a
+    classDef supervisor fill:#fef3c7,stroke:#b45309,color:#78350f
+    classDef investigador fill:#dcfce7,stroke:#15803d,color:#14532d
+    classDef analista fill:#e0f2fe,stroke:#0369a1,color:#0c4a6e
+    classDef hitl fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d
+    classDef publicador fill:#ede9fe,stroke:#6d28d9,color:#3b0764
