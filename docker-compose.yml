@@ -1,0 +1,39 @@
+# Levanta Redis + la API con un solo comando:
+#     docker compose up --build
+# API:   http://localhost:8000/docs
+# Redis: localhost:6379
+
+services:
+  redis:
+    # Redis 8 trae incorporados los módulos de búsqueda (Query Engine) y JSON
+    # que necesita el checkpointer de LangGraph (AsyncRedisSaver).
+    # Ojo: Redis 7 "pelado" NO alcanza.
+    image: redis:8
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    # Persistencia en disco: si se reinicia el contenedor, los jobs y los
+    # checkpoints (incluidos los que esperan aprobación) siguen ahí.
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Dentro de la red de Docker, Redis se llama "redis", no "localhost".
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  redis-data:

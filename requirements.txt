@@ -1,0 +1,24 @@
+# --- API ---
+fastapi>=0.115
+uvicorn[standard]>=0.30
+httpx>=0.27
+
+# --- Redis (estado de los jobs + checkpoints de LangGraph) ---
+redis>=5.2
+langgraph-checkpoint-redis>=0.5.2
+
+# --- Orquestador multi-agente (Pre-entrega 6) ---
+langgraph>=1.2
+langchain-core>=1.6
+langchain-openai>=1.6
+langchain-anthropic>=1.7
+pydantic>=2.9
+python-dotenv>=1.0
+
+# --- Observabilidad ---
+langsmith>=0.3
+
+# --- Tests (no necesitan API key ni Redis) ---
+pytest>=8.3
+pytest-asyncio>=0.24
+fakeredis>=2.26
